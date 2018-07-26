@@ -1,47 +1,60 @@
 function model = test_lwpr_2D
 
-n = 500;
+n = 50*50;
+
+[x1, x2] = meshgrid(1:50, 1:50);
+X = [x1(:), x2(:)] / 50;
+Y = zeros(n, 1);
+Y = (X(:,1) < X(:,2));
+Y(Y ~= 0) = 1;
 
 % a random training set using the CROSS function
-X = (rand(n,2)-.5)*2;
-Y = max([exp(-X(:,1).^2 * 10),exp(-X(:,2).^2 * 50),1.25*exp(-(X(:,1).^2+X(:,2).^2)*5)]');
-Y = Y' + randn(n,1)*0.1;
+% X = (rand(n,2)-.5)*2;
+% Y = max([exp(-X(:,1).^2 * 10),exp(-X(:,2).^2 * 50),1.25*exp(-(X(:,1).^2+X(:,2).^2)*5)]');
+% Y = Y' + randn(n,1)*0.1;
+
 
 % a systematic test set on a grid
-Xt = [];
-for i=-1:0.05:1,
-	for j=-1:0.05:1,
-		Xt = [Xt; i j];
-	end
-end
-Yt = max([exp(-Xt(:,1).^2 * 10),exp(-Xt(:,2).^2 * 50),1.25*exp(-(Xt(:,1).^2+Xt(:,2).^2)*5)]');
-Yt = Yt';
+% Xt = [];
+% for i=-1:0.05:1
+% 	for j=-1:0.05:1
+% 		Xt = [Xt; i j];
+% 	end
+% end
+% Yt = max([exp(-Xt(:,1).^2 * 10),exp(-Xt(:,2).^2 * 50),1.25*exp(-(Xt(:,1).^2+Xt(:,2).^2)*5)]');
+% Yt = Yt';
+Xt = X;
+Yt = Y;
 
 tic
-
 
 % initialize LWPR
 model = lwpr_init(2,1,'name','lwpr_test');
 
 model = lwpr_set(model,'init_D',[25 0; 0 25]);    
-model = lwpr_set(model,'init_alpha',ones(2)*250);
+model = lwpr_set(model,'init_alpha',ones(2)*1e-3);
 model = lwpr_set(model,'w_gen',0.2);
 model = lwpr_set(model,'diag_only',0);   
-model = lwpr_set(model,'meta',1);
-model = lwpr_set(model,'meta_rate',250);
+model = lwpr_set(model,'meta',0);
+% model = lwpr_set(model,'meta_rate',250);
 model = lwpr_set(model,'kernel','Gaussian');   
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 %  Transfer model into mex-internal storage
-   model = lwpr_storage('Store',model);
+%    model = lwpr_storage('Store',model);
 %%%%%%%%%%%%%%%%%%%%%%%%
 
+% Initial values for train
+[model,yp,w] = lwpr_update(model,[0.5;0.25],[0]);
+[model,yp,w] = lwpr_update(model,[0.5;0.75],[1]);
+
 % train the model
-for j=1:20
+for j=1:100
    inds = randperm(n);
+%     inds = [1:n];
 
    mse = 0;
-   for i=1:n,
+   for i=1:n
 	   [model,yp,w] = lwpr_update(model,X(inds(i),:)',Y(inds(i),:)');         
 	   mse = mse + (Y(inds(i),:)-yp).^2;
    end
@@ -56,10 +69,11 @@ end
 
 % create predictions for the test data
 Yp = zeros(size(Yt));
-for i=1:length(Xt),
+for i=1:length(Xt)
 	[yp,w]=lwpr_predict(model,Xt(i,:)',0.001);
 	Yp(i,1) = yp;
 end
+
 %[yp,w]=lwpr_predict(model,Xt',0.001);
 %Yp = yp';
 
@@ -83,7 +97,8 @@ plot3(X(:,1),X(:,2),Y,'*');
 title('Noisy data samples');
 
 % plot the fitted surface
-axis([-1 1 -1 1 -.5 1.5]);
+% axis([-1 1 -1 1 -.5 1.5]);
+axis([0 1 0 1 -.5 1.5]);
 subplot(2,2,2);
 [x,y,z]=makesurf([Xt,Yp],sqrt(length(Xt)));
 if ~exist('surfl')
@@ -91,7 +106,8 @@ if ~exist('surfl')
 else
    surfl(x,y,z);
 end
-axis([-1 1 -1 1 -.5 1.5]);
+% axis([-1 1 -1 1 -.5 1.5]);
+axis([0 1 0 1 -.5 1.5]);
 title(sprintf('The fitted function: nMSE=%5.3f',nmse));
 
 % plot the true surface
@@ -108,7 +124,7 @@ title('The true function');
 % plot the local models
 subplot(2,2,4);
 for i=1:length(model.sub(1).rfs),
-	draw_ellipse(model.sub(1).rfs(i).D,model.sub(1).rfs(i).c,0.1,'Gaussian');
+	draw_ellipse(model.sub(1).rfs(i).D,model.sub(1).rfs(i).c,0.01,'Gaussian');
 	hold on;
 end
 hold off;

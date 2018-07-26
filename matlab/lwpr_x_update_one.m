@@ -104,7 +104,7 @@ for i=1:numrfs
 end
         
 % do we need to add a new RF?
-if (wv(3) <= model.w_gen)
+if (wv(3) <= model.w_gen) && (model.n_data < 3)
    if (wv(3) > 0.1*model.w_gen & sub.rfs(iv(3)).trustworthy)
       sub.rfs(numrfs+1) = lwpr_x_init_rf(model, sub.rfs(iv(3)), xn, yn);
    else
